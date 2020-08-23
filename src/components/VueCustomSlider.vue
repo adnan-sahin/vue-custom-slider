@@ -15,7 +15,13 @@
           background: item.color,
         }"
         class="break-point"
-      ></div>
+      >
+        <span :style="{ color: item.color }" class="tooltip-text">
+          <p>
+            {{ item.eventType }}
+          </p>
+        </span>
+      </div>
       <div
         class="thumb"
         :style="{ left: sliderWidth - 3 * startPointLeft + 'px' }"
@@ -221,6 +227,40 @@ export default {
     width: 2px;
     position: absolute;
     cursor: pointer;
+    .tooltip-text {
+      visibility: hidden;
+      text-align: center;
+      border-radius: 5px;
+      padding: 4px 6px;
+      font-size: 12px;
+      background: currentColor;
+      opacity: 0.8;
+      // border-color: currentColor;
+
+      /* Position the tooltip */
+      position: absolute;
+      transform: translate(-50%, -125%);
+      p {
+        color: #fff;
+        padding: 0;
+        margin: 0;
+        font-size: 10px;
+      }
+      z-index: 3;
+      &::after {
+        content: '';
+        position: absolute;
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+        border-style: solid;
+        border-color: currentColor transparent transparent transparent;
+      }
+    }
+    &:hover .tooltip-text {
+      visibility: visible;
+    }
   }
 }
 .start-point {
