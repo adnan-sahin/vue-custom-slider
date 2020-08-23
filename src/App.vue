@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <VueCustomSlider />
+    <VueCustomSlider :sliderWidth="800" />
   </div>
 </template>
 
