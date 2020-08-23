@@ -1,6 +1,9 @@
 <template>
   <div>
-    <div class="custom-slider" :style="{ width: sliderWidth + 'px' }">
+    <div
+      class="custom-slider"
+      :style="{ width: sliderWidth + 'px', ...sliderBackgroundCssVars }"
+    >
       <div class="start-point" :style="{ left: startPointLeft + 'px' }">
         <div class="start-point__text">START POINT</div>
       </div>
@@ -111,23 +114,94 @@ export default {
           color: 'red',
         },
       ],
+      sliderBackgroundData: [
+        {
+          date: moment().add(-32, 'hours'),
+          eventType: 'startPoint',
+          color: '#f9fafc',
+        },
+        {
+          date: moment().add(-29, 'hours'),
+          eventType: 'update',
+          color: 'lightblue',
+        },
+
+        {
+          date: moment().add(-22, 'hours'),
+          eventType: 'allocation',
+          color: 'rgba(234, 67, 53, 0.4)',
+        },
+
+        {
+          date: moment().add(-18, 'hours'),
+          eventType: 'update',
+          color: 'lightblue',
+        },
+
+        {
+          date: moment().add(-7, 'hours'),
+          eventType: 'update',
+          color: 'lightgrey',
+        },
+        {
+          date: moment().add(-1, 'hours'),
+          eventType: 'update',
+          color: 'lightgreen',
+        },
+        {
+          date: moment().add(-1, 'hours'),
+          eventType: 'system',
+          color: 'rgba(234, 67, 53, 0.17)',
+        },
+        {
+          date: moment(),
+          eventType: 'allocation',
+          color: 'rgba(234, 67, 53, 0.4)',
+        },
+      ],
     };
   },
   methods: {
     leftEventWidth(date) {
       let duration = moment().diff(date);
       let width =
-        (duration / this.maxDiffDuration) *
+        (duration / this.maxDiffDurationEvent) *
         (this.sliderWidth - 3 * this.startPointLeft);
       return this.sliderWidth - 2 * this.startPointLeft - width;
     },
   },
   computed: {
-    maxDiffDuration() {
+    maxDiffDurationEvent() {
       return moment().diff(this.sliderData[0].date);
+    },
+    maxDiffDurationBackground() {
+      return moment().diff(this.sliderBackgroundData[0].date);
     },
     sliderDataLength() {
       return this.sliderData.length;
+    },
+    sliderBackgroundCssVars() {
+      let arrLinearGradient = [];
+      let startPoint = 0;
+      this.sliderBackgroundData.forEach((item) => {
+        let duration = moment().diff(item.date);
+        let width = parseInt(
+          this.sliderWidth -
+            (duration / this.maxDiffDurationBackground) * this.sliderWidth
+        );
+        arrLinearGradient.push(`${item.color} ${startPoint}px ${width}px`);
+        startPoint = width;
+      });
+      let linerGradient = arrLinearGradient.join(' , ');
+      return {
+        background: `repeating-linear-gradient(
+    135deg,
+    rgba(50, 50, 50, 0),
+    rgba(50, 50, 50, 0.12) 1px,
+    rgba(50, 50, 50, 0) 2px,
+    rgba(50, 50, 50, 0) 4px
+  ), linear-gradient(to right, ${linerGradient})`,
+      };
     },
   },
 };
