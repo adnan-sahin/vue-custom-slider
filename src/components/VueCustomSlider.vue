@@ -1,6 +1,8 @@
 <template>
   <div>
     <div
+      ref="slider"
+      @mousemove="mouseMoveSlider"
       class="custom-slider"
       :style="{ width: sliderWidth + 'px', ...sliderBackgroundCssVars }"
     >
@@ -32,12 +34,21 @@
       >
         <div class="end-point__text">END POINT</div>
       </div>
+      <span
+        class="resource-tooltip-text"
+        :style="{ left: resourceLeft + 'px', color: currentResourceColor }"
+      >
+        <p>
+          {{ currentResourceText }}
+        </p>
+      </span>
     </div>
   </div>
 </template>
 
 <script>
 import moment from 'moment';
+import { throttle } from './helpers';
 export default {
   props: {
     sliderWidth: {
@@ -47,7 +58,11 @@ export default {
   },
   data() {
     return {
+      resourceLeft: 15,
       startPointLeft: 15,
+      currentResourceText: '',
+      currentResourceColor: 'grey',
+      arrLinearGradientTooltip: [],
       sliderData: [
         {
           date: moment().add(-32, 'hours'),
@@ -123,58 +138,49 @@ export default {
       sliderBackgroundData: [
         {
           date: moment().add(-32, 'hours'),
-          eventType: 'startPoint',
+          eventType: 'event 1',
           color: '#f9fafc',
         },
         {
           date: moment().add(-29, 'hours'),
-          eventType: 'update',
+          eventType: 'event 2',
           color: 'lightblue',
         },
 
         {
           date: moment().add(-22, 'hours'),
-          eventType: 'allocation',
+          eventType: 'event 3',
           color: 'rgba(234, 67, 53, 0.4)',
         },
 
         {
           date: moment().add(-18, 'hours'),
-          eventType: 'update',
+          eventType: 'event 4',
           color: 'lightblue',
         },
 
         {
           date: moment().add(-7, 'hours'),
-          eventType: 'update',
+          eventType: 'event 5',
           color: 'lightgrey',
         },
         {
           date: moment().add(-1, 'hours'),
-          eventType: 'update',
+          eventType: 'event 6',
           color: 'lightgreen',
         },
         {
           date: moment().add(-1, 'hours'),
-          eventType: 'system',
+          eventType: 'event 7',
           color: 'rgba(234, 67, 53, 0.17)',
         },
         {
           date: moment(),
-          eventType: 'allocation',
+          eventType: 'event 8',
           color: 'rgba(234, 67, 53, 0.4)',
         },
       ],
     };
-  },
-  methods: {
-    leftEventWidth(date) {
-      let duration = moment().diff(date);
-      let width =
-        (duration / this.maxDiffDurationEvent) *
-        (this.sliderWidth - 3 * this.startPointLeft);
-      return this.sliderWidth - 2 * this.startPointLeft - width;
-    },
   },
   computed: {
     maxDiffDurationEvent() {
@@ -196,7 +202,15 @@ export default {
             (duration / this.maxDiffDurationBackground) * this.sliderWidth
         );
         arrLinearGradient.push(`${item.color} ${startPoint}px ${width}px`);
-        startPoint = width;
+        if (width > 0) {
+          this.arrLinearGradientTooltip.push({
+            start: startPoint,
+            end: width,
+            color: item.color,
+            resourceName: item.eventType,
+          });
+          startPoint = width;
+        }
       });
       let linerGradient = arrLinearGradient.join(' , ');
       return {
@@ -210,6 +224,27 @@ export default {
       };
     },
   },
+  methods: {
+    leftEventWidth(date) {
+      let duration = moment().diff(date);
+      let width =
+        (duration / this.maxDiffDurationEvent) *
+        (this.sliderWidth - 3 * this.startPointLeft);
+      return this.sliderWidth - 2 * this.startPointLeft - width;
+    },
+    updateCoordinates(event) {
+      this.resourceLeft = event.clientX - this.$refs.slider.offsetLeft;
+      let currentResource =
+        this.arrLinearGradientTooltip.find(
+          (p) => p.start <= this.resourceLeft && p.end >= this.resourceLeft
+        ) || {};
+      this.currentResourceText = currentResource.resourceName;
+      this.currentResourceColor = currentResource.color;
+    },
+  },
+  created() {
+    this.mouseMoveSlider = throttle(this.updateCoordinates, 300);
+  },
 };
 </script>
 
@@ -222,6 +257,40 @@ export default {
   box-shadow: inset 0 4px 8px 0 rgba(0, 0, 0, 0.1);
   z-index: 1;
   position: relative;
+  .resource-tooltip-text {
+    visibility: hidden;
+    text-align: center;
+    border-radius: 5px;
+    padding: 4px 6px;
+    font-size: 12px;
+    background: currentColor;
+    // opacity: 0.8;
+    // border-color: currentColor;
+
+    /* Position the tooltip */
+    position: absolute;
+    transform: translate(-50%, -125%);
+    p {
+      color: #fff;
+      padding: 0;
+      margin: 0;
+      font-size: 12 px;
+    }
+    z-index: 3;
+    &::after {
+      content: '';
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      margin-left: -5px;
+      border-width: 5px;
+      border-style: solid;
+      border-color: currentColor transparent transparent transparent;
+    }
+  }
+  &:hover .resource-tooltip-text {
+    visibility: visible;
+  }
   .break-point {
     height: 20px;
     width: 2px;
@@ -234,8 +303,8 @@ export default {
       padding: 4px 6px;
       font-size: 12px;
       background: currentColor;
-      opacity: 0.8;
-      // border-color: currentColor;
+      opacity: 1;
+      border-color: currentColor;
 
       /* Position the tooltip */
       position: absolute;
@@ -244,9 +313,9 @@ export default {
         color: #fff;
         padding: 0;
         margin: 0;
-        font-size: 10px;
+        font-size: 12 px;
       }
-      z-index: 3;
+      z-index: 4;
       &::after {
         content: '';
         position: absolute;
@@ -260,6 +329,9 @@ export default {
     }
     &:hover .tooltip-text {
       visibility: visible;
+    }
+    &:hover .break-point .resource-tooltip-text {
+      visibility: hidden;
     }
   }
 }
