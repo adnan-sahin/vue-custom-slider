@@ -6,33 +6,37 @@
       class="custom-slider"
       :style="{ width: sliderWidth + 'px', ...sliderBackgroundCssVars }"
     >
-      <div class="start-point" :style="{ left: startPointLeft + 'px' }">
-        <div class="start-point__text">START POINT</div>
+      <div class="start-point"></div>
+      <div class="start-point__text">
+        {{ formatDatetime(startDateTime) }}
       </div>
       <div
-        v-for="(item, index) in sliderData"
+        v-for="(item, index) in locatedSliderData"
         :key="index"
         :style="{
-          left: leftEventWidth(item.date) + 'px',
+          left: item.left + 'px',
           background: item.color,
         }"
+        @click="handleClickBreakPoint"
         class="break-point"
       >
         <span :style="{ color: item.color }" class="tooltip-text">
-          <p>
+          <p class="has-break-point-tooltip">
             {{ item.eventType }}
           </p>
         </span>
       </div>
       <div
+        ref="sliderThumb"
+        @mousedown="handleMouseDownSliderThumb"
+        @dragstart="handleDragStartSliderThumb"
         class="thumb"
-        :style="{ left: sliderWidth - 3 * startPointLeft + 'px' }"
+        :style="{ left: sliderThumbLeft + 'px' }"
       ></div>
-      <div
-        class="end-point"
-        :style="{ left: sliderWidth - 2 * startPointLeft + 'px' }"
-      >
-        <div class="end-point__text">END POINT</div>
+      <div class="end-point" :style="{ left: sliderWidth + 'px' }"></div>
+      <div class="end-point__text" :style="{ left: sliderWidth - 50 + 'px' }">
+        LAST EVENT
+        {{ formatDatetime(endDateTime) }}
       </div>
       <span
         class="resource-tooltip-text"
@@ -58,11 +62,15 @@ export default {
   },
   data() {
     return {
-      resourceLeft: 15,
-      startPointLeft: 15,
+      resourceLeft: 0,
+      startPointLeft: 0,
       currentResourceText: '',
       currentResourceColor: 'grey',
       arrLinearGradientTooltip: [],
+      sliderThumbLeft: 0,
+      startDateTime: moment().add(-36, 'hours'),
+      endDateTime: moment().add(2, 'hours'),
+      locatedSliderData: [],
       sliderData: [
         {
           date: moment().add(-32, 'hours'),
@@ -130,14 +138,14 @@ export default {
           color: 'blue',
         },
         {
-          date: moment(),
+          date: moment(-0.5, 'hours'),
           eventType: 'allocation',
           color: 'red',
         },
       ],
       sliderBackgroundData: [
         {
-          date: moment().add(-32, 'hours'),
+          date: moment().add(-30, 'hours'),
           eventType: 'event 1',
           color: '#f9fafc',
         },
@@ -184,7 +192,7 @@ export default {
   },
   computed: {
     maxDiffDurationEvent() {
-      return moment().diff(this.sliderData[0].date);
+      return this.endDateTime.diff(this.startDateTime);
     },
     maxDiffDurationBackground() {
       return moment().diff(this.sliderBackgroundData[0].date);
@@ -227,10 +235,8 @@ export default {
   methods: {
     leftEventWidth(date) {
       let duration = moment().diff(date);
-      let width =
-        (duration / this.maxDiffDurationEvent) *
-        (this.sliderWidth - 3 * this.startPointLeft);
-      return this.sliderWidth - 2 * this.startPointLeft - width;
+      let width = (duration / this.maxDiffDurationEvent) * this.sliderWidth;
+      return this.sliderWidth - width;
     },
     updateCoordinates(event) {
       this.resourceLeft = event.clientX - this.$refs.slider.offsetLeft;
@@ -241,16 +247,60 @@ export default {
       this.currentResourceText = currentResource.resourceName;
       this.currentResourceColor = currentResource.color;
     },
+    handleClickBreakPoint(event) {
+      event.preventDefault();
+      this.sliderThumbLeft = event.clientX - this.$refs.slider.offsetLeft - 12;
+    },
+    handleMouseDownSliderThumb(event) {
+      event.preventDefault();
+      let $refSliderThumb = this.$refs.sliderThumb;
+      let $refSlider = this.$refs.slider;
+      let shiftX = event.clientX - $refSliderThumb.getBoundingClientRect().left;
+      $refSlider.addEventListener('mousemove', onMouseMove);
+      $refSlider.addEventListener('mouseup', onMouseUp);
+      const $this = this;
+      function onMouseMove(event) {
+        let newLeft =
+          event.clientX - $refSlider.getBoundingClientRect().left - 12;
+        if (newLeft < 0) {
+          newLeft = 0;
+        }
+        let rightEdge = $refSlider.offsetWidth - $refSliderThumb.offsetWidth;
+        if (newLeft > rightEdge) {
+          newLeft = rightEdge;
+        }
+        const closestBreakPointLeft = $this.locatedSliderData
+          .map((p) => p.left)
+          .reduce((prev, curr) =>
+            Math.abs(curr - newLeft) < Math.abs(prev - newLeft) ? curr : prev
+          );
+        $this.sliderThumbLeft = closestBreakPointLeft - 12;
+      }
+      function onMouseUp(event) {
+        $refSlider.removeEventListener('mouseup', onMouseUp);
+        $refSlider.removeEventListener('mousemove', onMouseMove);
+      }
+    },
+    handleDragStartSliderThumb() {
+      return false;
+    },
+    formatDatetime(date) {
+      return date.format('DD.MM.YYYY HH:mm');
+    },
   },
   created() {
+    this.sliderThumbLeft = this.sliderWidth - 24;
     this.mouseMoveSlider = throttle(this.updateCoordinates, 300);
+    this.locatedSliderData = this.sliderData.map((item) => {
+      item.left = this.leftEventWidth(item.date);
+      return item;
+    });
   },
 };
 </script>
 
 <style lang="scss" scoped>
 .custom-slider {
-  border-radius: 10px;
   border: 1px solid #b3c4d4;
   height: 20px;
   background: #f9fafc;
@@ -291,6 +341,46 @@ export default {
   &:hover .resource-tooltip-text {
     visibility: visible;
   }
+
+  &:before {
+    &:hover .resource-tooltip-text {
+      visibility: hidden;
+    }
+  }
+  &:after {
+    &:hover .resource-tooltip-text {
+      visibility: hidden;
+    }
+  }
+  &::before {
+    content: '';
+    left: -7px;
+    bottom: -1px;
+    border-top-left-radius: 10px;
+    border-bottom-left-radius: 10px;
+    position: absolute;
+    border: 1px solid #b3c4d4;
+    height: 20px;
+    background: #f9fafc;
+    box-shadow: inset 0 4px 8px 0 rgba(0, 0, 0, 0.1);
+    width: 7px;
+    z-index: 0;
+  }
+  &::after {
+    content: '';
+    border-top-right-radius: 10px;
+    border-bottom-right-radius: 10px;
+    left: 100%;
+    bottom: -1px;
+    height: 20px;
+    position: absolute;
+    border: 1px solid #b3c4d4;
+    background: #f9fafc;
+    box-shadow: inset 0 4px 8px 0 rgba(0, 0, 0, 0.1);
+    width: 7px;
+    z-index: 0;
+  }
+
   .break-point {
     height: 20px;
     width: 2px;
@@ -330,21 +420,20 @@ export default {
     &:hover .tooltip-text {
       visibility: visible;
     }
-    &:hover .break-point .resource-tooltip-text {
-      visibility: hidden;
-    }
   }
 }
 .start-point {
   height: 12px;
   width: 2px;
   position: absolute;
+  left: 0;
   bottom: 20px;
   background: #4285f4;
   &__text {
-    position: relative;
-    left: -10px;
-    bottom: 22px;
+    position: absolute;
+    left: -50px;
+    width: 100px;
+    bottom: 35px;
     text-align: center;
     color: #4285f4;
     font-size: 10px;
@@ -358,24 +447,25 @@ export default {
   bottom: 20px;
   background: #4285f4;
   &__text {
-    position: relative;
-    left: -10px;
-    bottom: 22px;
+    position: absolute;
+    bottom: 32px;
     text-align: center;
     color: #4285f4;
     font-size: 10px;
     font-weight: 700;
+    width: 100px;
   }
 }
 .thumb {
   z-index: 2;
   position: absolute;
-  top: -7px;
-  width: 30px;
-  height: 30px;
-  border-radius: 15px;
+  top: -4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 12px;
   box-shadow: -4px 0 8px 0 rgba(0, 0, 0, 0.1);
   border: 1px solid #fff;
   background: #e6ecf1;
+  cursor: pointer;
 }
 </style>
