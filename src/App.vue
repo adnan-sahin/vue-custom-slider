@@ -1,16 +1,16 @@
 <template>
   <div id="app">
-    <VueCustomSlider :sliderWidth="800" />
+    <VueCustomRangeSlider :sliderWidth="800" />
   </div>
 </template>
 
 <script>
-import VueCustomSlider from './components/VueCustomSlider.vue';
+import VueCustomRangeSlider from './components/VueCustomRangeSlider.vue';
 
 export default {
   name: 'App',
   components: {
-    VueCustomSlider,
+    VueCustomRangeSlider,
   },
 };
 </script>
